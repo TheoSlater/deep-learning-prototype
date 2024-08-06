@@ -1,59 +1,51 @@
-import speech_recognition as sr
 import tensorflow as tf
 import numpy as np
-from gtts import gTTS
-import pygame
-import time
-from io import BytesIO
 from keras._tf_keras.keras.preprocessing.sequence import pad_sequences
 from keras._tf_keras.keras.preprocessing.text import Tokenizer
-import logging
-import os
+from keras._tf_keras.keras.utils import to_categorical
 import pickle
+import os
+import logging
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize the recognizer
-recognizer = sr.Recognizer()
+# Constants
+MAX_LENGTH = 20
 
 # Global variables
 tokenizer = None
 model = None
-max_length = 20
-num_classes = 10000  # Ensure this matches the number of classes in your one-hot encoding
+NUM_CLASSES = None
 
 def initialize_resources():
-    global tokenizer, model, max_length, num_classes
+    global tokenizer, model, NUM_CLASSES
 
-    model = tf.keras.Sequential([
-        tf.keras.layers.Embedding(input_dim=num_classes, output_dim=64, input_length=max_length),
-        tf.keras.layers.LSTM(128, return_sequences=True),
-        tf.keras.layers.LSTM(128, return_sequences=True),
-        tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(num_classes, activation='softmax'))
-    ])
-    
-    # Compile the model
-    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    tokenizer = Tokenizer(oov_token='<OOV>')
+    NUM_CLASSES = 1000  # Initial value, adjust according to the vocabulary size
 
-    # Build the model with a dummy input shape
-    model.build(input_shape=(None, max_length))  # Specify input shape
-
-    # Print model summary to check the architecture
+    model = build_model()
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.build(input_shape=(None, MAX_LENGTH))
     model.summary()
 
-    tokenizer = Tokenizer(num_words=num_classes)
-    max_length = 20
+def build_model():
+    global NUM_CLASSES
+    return tf.keras.Sequential([
+        tf.keras.layers.Embedding(input_dim=NUM_CLASSES, output_dim=64, input_length=MAX_LENGTH),
+        tf.keras.layers.LSTM(64, return_sequences=True),
+        tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(NUM_CLASSES, activation='softmax'))
+    ])
 
 def save_model(filepath):
-    model.save(filepath)
-    logger.info(f"Model saved to {filepath}")
+    model.save(filepath + '.keras')
+    logger.info(f"Model saved to {filepath}.keras")
 
 def load_model(filepath):
     global model
-    model = tf.keras.models.load_model(filepath)
-    logger.info(f"Model loaded from {filepath}")
+    model = tf.keras.models.load_model(filepath + '.keras')
+    logger.info(f"Model loaded from {filepath}.keras")
 
 def save_tokenizer(filepath):
     with open(filepath, 'wb') as file:
@@ -66,156 +58,89 @@ def load_tokenizer(filepath):
         tokenizer = pickle.load(file)
     logger.info(f"Tokenizer loaded from {filepath}")
 
-def proper_tokenizer(text):
+def preprocess_text(text):
+    if not text:
+        logger.error("Empty or None text provided")
+        return np.zeros((1, MAX_LENGTH))  # Return a zero-padded sequence
+
     sequences = tokenizer.texts_to_sequences([text])
-    padded_sequences = pad_sequences(sequences, maxlen=max_length)
-    return padded_sequences[0]
+    logger.info(f"Sequences before padding: {sequences}")
 
-def simple_detokenizer(tokens):
-    if isinstance(tokens, np.ndarray):
-        tokens = tokens.tolist()
-    if not isinstance(tokens, list):
-        tokens = [tokens]
-    
-    try:
-        return ' '.join([tokenizer.index_word.get(t, '') for t in tokens if t > 0])
-    except ValueError:
-        logger.error("Error decoding tokens: %s", tokens)
-        return ""
+    if sequences is None or not isinstance(sequences, list) or not sequences[0]:
+        logger.error("Tokenization resulted in None or invalid format")
+        return np.zeros((1, MAX_LENGTH))  # Return a zero-padded sequence
 
-def listen():
-    with sr.Microphone() as source:
-        logger.info("Listening...")
-        audio = recognizer.listen(source)
-        try:
-            text = recognizer.recognize_google(audio)
-            logger.info(f"You said: {text}")
-            return text
-        except sr.UnknownValueError:
-            logger.warning("Could not understand audio")
-            return ""
-        except sr.RequestError:
-            logger.error("Could not request results; check your network connection")
-            return ""
+    sequences = sequences[0]
 
-def generate_response(input_tokens):
-    input_tokens = np.array(input_tokens).reshape((1, -1))
-    prediction = model.predict(input_tokens)
-    logger.info(f"Raw prediction: {prediction}")
+    # Replace None values with 0 (or another default token index)
+    sequences = [0 if v is None else v for v in sequences]
+    logger.info(f"Sequences after replacing None values: {sequences}")
 
-    # Check if prediction is giving non-zero values
-    if np.all(prediction == 0):
-        logger.warning("Prediction output is all zeros")
-        return "I didn't understand that"
+    if not sequences or not all(isinstance(i, int) for i in sequences):
+        logger.error("Sequences are empty or contain non-integer values")
+        return np.zeros((1, MAX_LENGTH))  # Return a zero-padded sequence
 
-    # Ensure that prediction is properly handled
-    response_tokens = np.argmax(prediction[0], axis=-1)
-    logger.info(f"Raw response tokens: {response_tokens}")
+    padded_sequences = pad_sequences([sequences], maxlen=MAX_LENGTH, padding='post')
+    return padded_sequences
 
-    if not np.any(response_tokens):
-        return "No valid response generated"
+def postprocess_text(tokens):
+    index_word = tokenizer.index_word
+    return ' '.join([index_word.get(token, '') for token in tokens if token > 0])
 
-    response = simple_detokenizer(response_tokens)
-    logger.info(f"Decoded response: {response}")
+def train_model(input_text, target_text):
+    input_sequence = preprocess_text(input_text)
+    target_sequence = preprocess_text(target_text)
 
-    return response
+    target_sequence_one_hot = to_categorical(target_sequence, num_classes=NUM_CLASSES)
+    model.fit(input_sequence, target_sequence_one_hot, epochs=150 , verbose=1)
 
+def generate_response(input_text):
+    input_sequence = preprocess_text(input_text)
+    prediction = model.predict(input_sequence)
+    response_sequence = np.argmax(prediction[0], axis=-1)
+    return postprocess_text(response_sequence)
 
+def add_word_to_tokenizer(new_word):
+    global tokenizer, NUM_CLASSES, model
 
-def text_to_speech(text):
-    if not text.strip():
-        print("No text to speak")
-        return
-    
-    try:
-        tts = gTTS(text=text, lang='en')
-        audio_fp = BytesIO()
-        tts.write_to_fp(audio_fp)
-        audio_fp.seek(0)
+    # Update tokenizer with the new word
+    tokenizer.fit_on_texts([new_word])
+    NUM_CLASSES = len(tokenizer.word_index) + 1  # +1 to account for padding token
 
-        pygame.mixer.quit()
-        pygame.mixer.init()
-        
-        pygame.mixer.music.stop()
-        
-        try:
-            pygame.mixer.music.load(audio_fp, 'mp3')
-            pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                time.sleep(0.1)
-            print("Played text-to-speech message")
-        except pygame.error as e:
-            print(f"Error playing MP3 data: {e}")
-    except Exception as e:
-        print(f"Error with gTTS: {e}")
-
-def update_tokenizer(new_texts):
-    global tokenizer
-    tokenizer.fit_on_texts(new_texts)
-    logger.info(f"Updated tokenizer with texts: {new_texts}")
-
-def print_vocab():
-    global tokenizer
-    vocab_size = len(tokenizer.word_index)
-    vocab = tokenizer.word_index
-    logger.info(f"Vocabulary size: {vocab_size}")
-    logger.info(f"Vocabulary: {vocab}")
-
-def train_on_interaction(input_text, target_text):
-    update_tokenizer([input_text, target_text])
-    
-    input_tokens = proper_tokenizer(input_text)
-    target_tokens = proper_tokenizer(target_text)
-    
-    input_tokens = np.array(input_tokens).reshape((1, -1))
-    target_tokens = np.array(target_tokens).reshape((1, -1))
-    
-    if target_tokens.shape[1] != max_length:
-        target_tokens = pad_sequences(target_tokens, maxlen=max_length)
-    
-    # Convert target tokens to one-hot encoding
-    target_tokens_one_hot = tf.keras.utils.to_categorical(target_tokens, num_classes=num_classes)
-    
-    # Ensure the target shape matches the model output shape
-    assert target_tokens_one_hot.shape[2] == num_classes, "Target shape does not match the model's output shape"
-    
-    logger.info(f"Training input tokens: {input_tokens.shape}")
-    logger.info(f"Training target tokens: {target_tokens_one_hot.shape}")
-
-    model.fit(input_tokens, target_tokens_one_hot, epochs=100, verbose=1)
+    # Rebuild model with updated NUM_CLASSES
+    model = build_model()
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.build(input_shape=(None, MAX_LENGTH))
+    logger.info(f"Model rebuilt with NUM_CLASSES: {NUM_CLASSES}")
 
 def main():
     initialize_resources()
     
-    model_filepath = 'trained_model.keras'
+    model_filepath = 'model'
     tokenizer_filepath = 'tokenizer.pkl'
     
-    if os.path.exists(model_filepath):
+    if os.path.exists(model_filepath + '.keras'):
         load_model(model_filepath)
-    else:
-        logger.info("No pre-trained model found, starting with a new model.")
-
     if os.path.exists(tokenizer_filepath):
         load_tokenizer(tokenizer_filepath)
     else:
         logger.info("No pre-trained tokenizer found, starting with a new tokenizer.")
-
-    print_vocab()
-
+    
     while True:
-        user_text = listen()
-        if user_text:
-            logger.info(f"Received user text: {user_text}")
-            input_tokens = proper_tokenizer(user_text)
-            logger.info(f"Tokenized input: {input_tokens}")
-            response = generate_response(input_tokens)
-            logger.info(f"Generated response: {response}")
-            text_to_speech(response)
-            
+        user_text = input("You: ")
+        if user_text.lower() == 'exit':
+            break
+
+        response = generate_response(user_text)
+        print(f"Bot: {response}")
+
+        if response.strip() == "":
             expected_response = input("Correct response: ")
-            logger.info(f"Expected response: {expected_response}")
-            train_on_interaction(user_text, expected_response)
-            
+            # Add new word(s) to the tokenizer
+            add_word_to_tokenizer(user_text)
+            add_word_to_tokenizer(expected_response)
+            # Re-train the model with the new words
+            train_model(user_text, expected_response)
             save_model(model_filepath)
             save_tokenizer(tokenizer_filepath)
 
