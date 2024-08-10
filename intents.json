@@ -1,0 +1,142 @@
+{
+  "intents": [
+    {
+      "tag": "greeting",
+      "patterns": [
+        "Hi",
+        "Hey",
+        "How are you",
+        "Is anyone there?",
+        "Hello",
+        "Good day",
+        "Hi there",
+        "Hey there",
+        "Greetings",
+        "Good morning",
+        "Good afternoon",
+        "Good evening",
+        "What's up?",
+        "Howdy"
+      ],
+      "responses": [
+        "Hey! How can I help you today?",
+        "Hello! What can I do for you?",
+        "Hi there, how's it going?",
+        "Hi! How can I assist you?",
+        "Hello! Need any help?",
+        "Hi! What brings you here today?",
+        "Hey! How's your day going?",
+        "Hello! How may I assist you today?",
+        "Hi! How are you doing?",
+        "Hey there! What can I do for you today?",
+        "Hello! How can I be of service?",
+        "Hi! What are you looking for today?",
+        "Greetings! How can I help you today?",
+        "Hi! How can I make your day better?",
+        "Hello! It's great to see you!",
+        "Hey! What can I assist you with?"
+      ]
+    },
+    {
+      "tag": "goodbye",
+      "patterns": [
+        "Bye",
+        "See you later",
+        "Goodbye",
+        "Catch you later",
+        "See ya",
+        "Take care",
+        "Later",
+        "Farewell",
+        "Bye-bye",
+        "I'm off",
+        "Have a good day",
+        "I'm leaving",
+        "Talk to you later"
+      ],
+      "responses": [
+        "See you later, thanks for visiting",
+        "Have a nice day",
+        "Bye! Come back again soon.",
+        "Goodbye! Have a wonderful day.",
+        "Take care! Hope to see you again soon.",
+        "Bye for now! Don't hesitate to return.",
+        "Farewell! Have a great day.",
+        "Goodbye! We look forward to your next visit.",
+        "See you soon! Take care.",
+        "Bye! Hope to see you again.",
+        "Goodbye! Thanks for stopping by.",
+        "See you later! Have a great day.",
+        "Take care! Come back soon.",
+        "Bye! It was a pleasure to assist you.",
+        "Goodbye! Have a nice time ahead.",
+        "Later! Have a fantastic day."
+      ]
+    },
+    {
+      "tag": "thanks",
+      "patterns": [
+        "Thanks",
+        "Thank you",
+        "That's helpful",
+        "Thank's a lot!",
+        "Thanks a bunch",
+        "Thanks so much",
+        "I appreciate it",
+        "Much appreciated",
+        "Thanks a ton",
+        "Many thanks",
+        "Thank you very much"
+      ],
+      "responses": [
+        "Happy to help!",
+        "Any time!",
+        "My pleasure",
+        "You're welcome!",
+        "Glad I could assist!",
+        "No problem at all!",
+        "You're welcome! Anytime!",
+        "It was my pleasure!",
+        "I'm happy to help!",
+        "Don't mention it!",
+        "Always happy to help!",
+        "You're welcome, happy to help!",
+        "Glad to be of assistance!",
+        "You're welcome, have a great day!",
+        "No worries, glad I could help!",
+        "It was nothing, happy to help!"
+      ]
+    },
+    {
+      "tag": "funny",
+      "patterns": [
+        "Tell me a joke!",
+        "Tell me something funny!",
+        "Do you know a joke?",
+        "I need a laugh",
+        "Make me laugh",
+        "Got any jokes?",
+        "Can you tell me a joke?",
+        "I could use a joke",
+        "Cheer me up with a joke"
+      ],
+      "responses": [
+        "Why did the hipster burn his mouth? He drank the coffee before it was cool.",
+        "What did the buffalo say when his son left for college? Bison.",
+        "Why don't scientists trust atoms? Because they make up everything!",
+        "Why did the scarecrow win an award? Because he was outstanding in his field!",
+        "What do you call fake spaghetti? An impasta!",
+        "Why don't skeletons fight each other? They don't have the guts.",
+        "What do you get if you cross a snowman and a vampire? Frostbite.",
+        "Why was the math book sad? It had too many problems.",
+        "How do you organize a space party? You planet.",
+        "Why don't some couples go to the gym? Because some relationships don't work out.",
+        "I told my wife she was drawing her eyebrows too high. She looked surprised.",
+        "Why do cows wear bells? Because their horns don't work.",
+        "What's orange and sounds like a parrot? A carrot.",
+        "Why can't you hear a pterodactyl in the bathroom? Because it has a silent pee.",
+        "Why did the bicycle fall over? Because it was two-tired."
+      ]
+    }
+  ]
+}
